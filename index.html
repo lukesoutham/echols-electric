@@ -131,7 +131,7 @@
 <!-- FULL-SCREEN HERO VIDEO -->
 <header class="hero" id="hero">
   <div class="poster" id="poster" aria-hidden="true"></div>
-  <video class="vid" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"></video>
+  <video class="vid" autoplay muted playsinline preload="auto" aria-hidden="true" tabindex="-1"></video>
   <div class="scrim"></div>
   <div class="inner">
     <span class="k">Payson, Utah &middot; Licensed Electrical Contractor</span>
@@ -243,8 +243,10 @@
   try{ vid.load(); }catch(e){}
 
   // robust autoplay + first-gesture fallback
-  var armed=false;
-  function playVid(){ if(reduce) return; try{vid.muted=true;}catch(e){} var p=vid.play(); if(p&&p.catch) p.catch(function(){ armGesture(); }); }
+  var armed=false, finished=false;
+  // play once off->on, then hold on the lit bulb (don't loop back to off)
+  vid.addEventListener('ended',function(){ finished=true; try{ vid.pause(); if(vid.duration) vid.currentTime=vid.duration-0.05; }catch(e){} });
+  function playVid(){ if(reduce||finished) return; try{vid.muted=true;}catch(e){} var p=vid.play(); if(p&&p.catch) p.catch(function(){ armGesture(); }); }
   function armGesture(){
     if(armed) return; armed=true;
     function go(){ try{vid.muted=true;}catch(e){} var p=vid.play(); if(p&&p.then) p.then(clear).catch(function(){}); }
