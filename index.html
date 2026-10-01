@@ -243,20 +243,22 @@
   try{ vid.load(); }catch(e){}
 
   // robust autoplay + first-gesture fallback
-  var armed=false, finished=false;
-  // play once off->on, then hold on the lit bulb (don't loop back to off)
+  var armed=false, finished=false, started=false, scheduled=false;
+  // hold on the lit bulb at the end; never loop back to off
   vid.addEventListener('ended',function(){ finished=true; try{ vid.pause(); if(vid.duration) vid.currentTime=vid.duration-0.05; }catch(e){} });
-  function playVid(){ if(reduce||finished) return; try{vid.muted=true;}catch(e){} var p=vid.play(); if(p&&p.catch) p.catch(function(){ armGesture(); }); }
+  // actually start playback from the OFF frame, so the turn-on is always seen
+  function doPlay(){ if(reduce||finished) return; try{vid.muted=true;}catch(e){} if(!started){ try{vid.currentTime=0;}catch(e){} } var p=vid.play(); if(p&&p.then){ p.then(function(){started=true;}).catch(function(){ armGesture(); }); } else { started=true; } }
+  // first play waits a short beat on the off frame, then runs off->on
+  function playVid(){ if(reduce||finished||started) return; if(scheduled) return; scheduled=true; setTimeout(doPlay,650); }
   function armGesture(){
     if(armed) return; armed=true;
-    function go(){ try{vid.muted=true;}catch(e){} var p=vid.play(); if(p&&p.then) p.then(clear).catch(function(){}); }
+    function go(){ try{vid.muted=true;}catch(e){} if(!started){ try{vid.currentTime=0;}catch(e){} } var p=vid.play(); if(p&&p.then) p.then(function(){started=true;clear();}).catch(function(){}); }
     function clear(){ ['touchstart','pointerdown','click','scroll'].forEach(function(ev){ removeEventListener(ev,go); }); }
     ['touchstart','pointerdown','click','scroll'].forEach(function(ev){ addEventListener(ev,go,{passive:true}); });
   }
   if(!reduce){
     ['loadedmetadata','loadeddata','canplay','canplaythrough'].forEach(function(ev){ vid.addEventListener(ev,playVid); });
-    document.addEventListener('visibilitychange',function(){ if(!document.hidden) playVid(); });
-    if('IntersectionObserver' in window){ new IntersectionObserver(function(es){ if(es[0].isIntersecting) playVid(); },{threshold:0.1}).observe(vid); }
+    document.addEventListener('visibilitychange',function(){ if(!document.hidden && !started) playVid(); });
     playVid(); armGesture();
   } else { try{vid.pause();}catch(e){} }
 
